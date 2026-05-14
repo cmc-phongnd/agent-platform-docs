@@ -1,0 +1,272 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  --ifm-color-primary: #2e8555;
+  --ifm-color-primary-dark: #29784c;
+  --ifm-color-primary-darker: #277148;
+  --ifm-color-primary-darkest: #205d3b;
+  --ifm-color-primary-light: #33925d;
+  --ifm-color-primary-lighter: #359962;
+  --ifm-color-primary-lightest: #3cad6e;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #25c2a0;
+  --ifm-color-primary-dark: #21af90;
+  --ifm-color-primary-darker: #1fa588;
+  --ifm-color-primary-darkest: #1a8870;
+  --ifm-color-primary-light: #29d5b0;
+  --ifm-color-primary-lighter: #32d8b4;
+  --ifm-color-primary-lightest: #4fddbf;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   Mermaid zoom wrapper
+   ============================================ */
+.mermaid-zoom {
+  position: relative;
+  margin: 1.2rem 0;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  background: var(--ifm-background-surface-color);
+  overflow: hidden;
+}
+
+.mermaid-zoom__container {
+  width: 100%;
+  height: 480px;
+  overflow: hidden;
+  position: relative;
+  background: var(--ifm-background-color);
+  user-select: none;
+  touch-action: none;
+}
+
+.mermaid-zoom__inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mermaid-zoom__inner > div {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mermaid-zoom__inner svg {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  display: block;
+}
+
+.mermaid-zoom__controls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--ifm-background-surface-color);
+  padding: 4px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 10;
+}
+
+.mermaid-zoom__controls button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-emphasis-800);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.mermaid-zoom__controls button:hover {
+  background: var(--ifm-color-primary);
+  color: white;
+  border-color: var(--ifm-color-primary);
+}
+
+.mermaid-zoom__hint {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  font-size: 0.7rem;
+  color: var(--ifm-color-emphasis-600);
+  background: var(--ifm-background-surface-color);
+  padding: 4px 8px;
+  border-radius: 4px;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+/* Fullscreen mode */
+.mermaid-zoom--fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  border-radius: 0;
+  z-index: 9999;
+  border: none;
+}
+
+.mermaid-zoom--fullscreen .mermaid-zoom__container {
+  height: 100vh;
+}
+
+/* ============================================
+   Architecture diagram (overview / bird's-eye)
+   ============================================ */
+.cap-arch {
+  margin: 1.5rem 0;
+  font-family: var(--ifm-font-family-base);
+  --cap-c-clients: #6b7280;
+  --cap-c-edge: #3b82f6;
+  --cap-c-app: #f59e0b;
+  --cap-c-data: #10b981;
+  --cap-c-obs: #8b5cf6;
+  --cap-c-ext: #ef4444;
+}
+
+.cap-arch__layer {
+  border: 2px solid var(--cap-layer, var(--cap-c-edge));
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  background: var(--ifm-background-surface-color);
+}
+
+.cap-arch__layer--clients { --cap-layer: var(--cap-c-clients); }
+.cap-arch__layer--edge    { --cap-layer: var(--cap-c-edge); }
+.cap-arch__layer--app     { --cap-layer: var(--cap-c-app); }
+.cap-arch__layer--data    { --cap-layer: var(--cap-c-data); }
+.cap-arch__layer--obs     { --cap-layer: var(--cap-c-obs); }
+.cap-arch__layer--ext     { --cap-layer: var(--cap-c-ext); }
+
+.cap-arch__layer-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cap-layer);
+  margin-bottom: 0.55rem;
+}
+
+.cap-arch__grid {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.cap-arch__grid--clients { grid-template-columns: repeat(3, 1fr); }
+.cap-arch__grid--edge    { grid-template-columns: 1fr 2fr; }
+.cap-arch__grid--app     { grid-template-columns: repeat(6, 1fr); }
+.cap-arch__grid--data    { grid-template-columns: repeat(2, 1fr); }
+.cap-arch__grid--ext     { grid-template-columns: repeat(2, 1fr); }
+
+.cap-arch__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.cap-arch__row > .cap-arch__layer { margin-bottom: 0; }
+
+.cap-arch__node {
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 6px;
+  padding: 0.5rem 0.625rem;
+}
+
+.cap-arch__node-title {
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--ifm-color-content);
+  line-height: 1.3;
+}
+
+.cap-arch__node-desc {
+  font-size: 0.7rem;
+  color: var(--ifm-color-content-secondary);
+  line-height: 1.4;
+  margin-top: 0.15rem;
+}
+
+.cap-arch__sub-title {
+  font-weight: 600;
+  font-size: 0.74rem;
+  color: var(--ifm-color-content);
+  margin-bottom: 0.25rem;
+  line-height: 1.3;
+}
+
+.cap-arch__sub-items {
+  font-size: 0.7rem;
+  color: var(--ifm-color-content-secondary);
+  line-height: 1.5;
+}
+
+.cap-arch__arrow {
+  text-align: center;
+  color: var(--ifm-color-emphasis-500);
+  font-size: 0.95rem;
+  margin: 0.15rem 0;
+  letter-spacing: 0.4em;
+}
+
+.cap-arch__caption {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--ifm-color-content-secondary);
+  margin-top: 0.35rem;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .cap-arch__grid--app,
+  .cap-arch__grid--clients,
+  .cap-arch__grid--ext,
+  .cap-arch__grid--edge {
+    grid-template-columns: 1fr 1fr;
+  }
+  .cap-arch__grid--data {
+    grid-template-columns: 1fr;
+  }
+  .cap-arch__row {
+    grid-template-columns: 1fr;
+  }
+}

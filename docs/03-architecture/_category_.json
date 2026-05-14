@@ -1,0 +1,9 @@
+{
+  "label": "03 — Architecture",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "title": "Architecture",
+    "description": "Thiết kế kỹ thuật chi tiết: services, data, workflow engine, tool runtime, RAG, multi-tenant, auth, observability"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "label": "05 — Frontend",
+  "position": 5,
+  "link": {
+    "type": "generated-index",
+    "title": "Frontend",
+    "description": "Web Console, embed widget, workflow editor"
+  }
+}

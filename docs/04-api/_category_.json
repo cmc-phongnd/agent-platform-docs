@@ -1,0 +1,9 @@
+{
+  "label": "04 — API",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "title": "API design",
+    "description": "Console + Public API conventions, auth, endpoints"
+  }
+}
