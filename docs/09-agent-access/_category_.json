@@ -1,0 +1,9 @@
+{
+  "label": "09 — Agent Access",
+  "position": 9,
+  "link": {
+    "type": "generated-index",
+    "title": "Agent access to CAP docs",
+    "description": "Hướng dẫn cho AI agent / công cụ ngoài đọc và truy vấn tài liệu CAP qua MCP (Model Context Protocol)"
+  }
+}

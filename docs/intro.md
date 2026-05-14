@@ -332,6 +332,7 @@ CAP được phát triển theo lộ trình **5 phiên bản** rõ ràng, ưu ti
 | 06 | [Triển khai](/06-deployment/01-dev-env) | DevOps, IT vận hành | Hướng dẫn cài đặt và vận hành |
 | 07 | [Lộ trình](/07-roadmap/01-mvp) | Quản lý sản phẩm | Phạm vi MVP và các giai đoạn |
 | 08 | [Tài liệu tham khảo](/08-references/01-dify) | Kiến trúc sư | Phân tích các nền tảng tham chiếu |
+| 09 | [Truy cập cho agent](/09-agent-access/01-mcp-access) | Đội tích hợp AI | Cách AI agent ngoài đọc docs CAP qua MCP |
 
 ---
 
