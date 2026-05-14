@@ -4,38 +4,275 @@ sidebar_position: 5
 
 # Knowledge Base
 
-🔴 Placeholder
+🟡 Draft — v0.1
 
-## Mô hình
+> Trang này định nghĩa **Knowledge Base (KB)** — nơi chứa tri thức nội bộ của tổ chức để agent retrieval khi trả lời. Đối tượng đọc: BA, content editor, kiến trúc sư.
+>
+> Chi tiết kỹ thuật pipeline RAG ở [Section 3 — RAG Pipeline](/03-architecture/05-rag-pipeline).
+
+---
+
+## 1. Vì sao Knowledge Base
+
+LLM một mình **không biết** tri thức nội bộ của tổ chức (chính sách HR, sản phẩm cụ thể, hợp đồng cũ). KB giải bài này: nạp tài liệu nội bộ vào → agent retrieve khi cần → trả lời **có dẫn nguồn**, **không bịa đặt**.
+
+Tie-back [Vision § 5 — Tri thức nội bộ ưu tiên](/01-overview/01-vision): Agent ưu tiên tài liệu của tổ chức **trên** kiến thức chung của LLM.
+
+---
+
+## 2. 5 nguyên tắc thiết kế
+
+| # | Nguyên tắc | Hệ quả |
+| --- | --- | --- |
+| 1 | **Citation mặc định** | Mọi câu trả lời từ retrieval phải kèm nguồn (document + đoạn) — không có "bịa không nguồn" |
+| 2 | **Ingest reproducible** | Re-index toàn bộ KB với chunking + embedding mới phải cho kết quả đoán được |
+| 3 | **Embedding cache** | Cùng text → cùng vector, dedup theo hash — tiết kiệm cost re-ingest |
+| 4 | **Isolation cứng cross-tenant** | Collection vector tách per-(tenant, workspace) — không filter ở app layer |
+| 5 | **Async ingest, sync retrieval** | Ingest chạy nền (có thể vài phút) — retrieval phải nhanh (\<200ms) |
+
+---
+
+## 3. Mô hình khái niệm
 
 ```mermaid
 erDiagram
     Workspace ||--o{ KnowledgeBase : owns
+    KnowledgeBase ||--|| EmbeddingConfig : "config embedding"
+    KnowledgeBase ||--|| ChunkingRule : "config chunking"
     KnowledgeBase ||--o{ Document : contains
-    Document ||--o{ Segment : chunks
-    Segment }o--|| VectorIndex : embedded-into
-    Document }o--|| Source : from
+    Document ||--o{ Segment : "chia thành"
+    Segment ||--|| Embedding : "có vector"
+    Document ||--|| Source : "đến từ"
+    KnowledgeBase ||--|| VectorIndex : "store ở"
+    Agent }o--o{ KnowledgeBase : "retrieval từ"
+
+    KnowledgeBase {
+        string id
+        string workspace_id
+        string name
+        string description
+        string status "active|reindexing|archived"
+        int document_count
+        int segment_count
+    }
+    Document {
+        string id
+        string kb_id
+        string source_type "upload|url|gdrive|sharepoint|notion"
+        string source_ref
+        string status "queued|processing|completed|failed"
+        datetime ingested_at
+    }
+    Segment {
+        string id
+        string document_id
+        text content
+        int position
+        json metadata
+    }
 ```
 
-| Entity | Vai trò |
+---
+
+## 4. Document types supported
+
+| Format | MVP | Note |
+| --- | --- | --- |
+| **PDF** | ✅ | Bao gồm bóc tách table với layout aware |
+| **DOCX / DOC** | ✅ | |
+| **TXT / MD** | ✅ | |
+| **HTML** | ✅ | Strip tag, giữ heading hierarchy |
+| **URL crawl** | ✅ | Crawl 1 URL hoặc whole site (rate-limited) |
+| **CSV / XLSX** | ⚠️ v2 | Mỗi row 1 segment hoặc whole table |
+| **Image (OCR)** | ⚠️ v2 | Tesseract / Azure OCR |
+| **Audio (transcribe)** | ⚠️ v3 | Whisper |
+| **Video** | ⚠️ v4 | Speech + frame analysis |
+
+### 4.1 Ingest pipeline
+
+```text
+Upload / Sync → Extract text → Clean → Chunk → Embed → Index
+                                            ↓
+                                       Embedding cache check
+```
+
+Mỗi bước có thể retry độc lập. Lỗi 1 document không ảnh hưởng document khác.
+
+---
+
+## 5. Chunking strategy
+
+Default: **recursive character splitter** với mặc định:
+
+| Tham số | Default | Range |
+| --- | --- | --- |
+| Chunk size | 500 token | 200-2000 |
+| Overlap | 50 token (10%) | 0-200 |
+| Separators | `\n\n`, `\n`, dấu chấm + khoảng trắng, khoảng trắng | configurable |
+
+**Parent-child mode** (v2): retrieve child chunk cho relevance, return parent chunk cho context — cải thiện độ chính xác.
+
+**Semantic chunking** (v3): dùng LLM tách theo ý nghĩa thay vì size cố định.
+
+---
+
+## 6. Embedding & vector index
+
+### 6.1 Choice
+
+| Provider | Model default | Use case |
+| --- | --- | --- |
+| OpenAI | `text-embedding-3-small` | General, low cost |
+| OpenAI | `text-embedding-3-large` | Cao chất lượng, cao cost |
+| BGE | `bge-large-en-v1.5` | Self-hosted, tiếng Anh |
+| Cohere | `embed-multilingual-v3` | Đa ngôn ngữ, có tiếng Việt |
+| Voyage | `voyage-3` | Cao chất lượng |
+
+**Quy tắc**: 1 KB pin 1 embedding model. Đổi → phải re-index toàn bộ KB.
+
+### 6.2 Vector store
+
+| Backend | MVP | Note |
+| --- | --- | --- |
+| pgvector | ✅ | Single Postgres — đơn giản |
+| Qdrant | ✅ | Dedicated vector DB — performance cao |
+| Milvus | ⚠️ v3 | Scale > 10M vectors |
+| Pinecone | ⚠️ v3 | Managed cloud |
+
+Multi-tenant isolation: **collection per (tenant_id, workspace_id, kb_id)** + metadata filter bắt buộc.
+
+---
+
+## 7. Retrieval methods
+
+3 phương pháp, kết hợp được:
+
+### 7.1 Semantic search
+
+Embed query → ANN search trong vector index → top-K segments theo cosine similarity.
+
+**Mạnh**: hiểu paraphrase, đồng nghĩa.
+
+### 7.2 Full-text search
+
+BM25 / `pg_bigm` / OpenSearch → top-K theo keyword match.
+
+**Mạnh**: tên riêng, số liệu, từ chuyên ngành.
+
+### 7.3 Hybrid + Rerank
+
+Lấy top-K từ cả 2 method → rerank model (Cohere / BGE-rerank) → top-N final.
+
+**Mạnh**: cân bằng 2 method, hiệu quả nhất cho enterprise — recommended default.
+
+| Config | Default | Khi nào đổi |
+| --- | --- | --- |
+| Top-K từ vector | 20 | Tăng nếu rerank tốt |
+| Top-K từ BM25 | 20 | |
+| Top-N sau rerank | 5 | Vào prompt LLM |
+| Similarity threshold | 0.7 | Lọc nhiễu |
+
+---
+
+## 8. Refresh & sync
+
+| Cách | Mô tả | Phù hợp |
+| --- | --- | --- |
+| **Manual upload** | Builder upload file thủ công | Tài liệu tĩnh, ít cập nhật |
+| **URL re-crawl** | Re-crawl URL theo schedule (vd hàng tuần) | Website public |
+| **Source sync** | Sync từ GDrive / SharePoint / Notion (v2) | Tài liệu có nguồn cloud, cập nhật thường xuyên |
+| **Webhook ingest** | External system POST tài liệu mới qua webhook | Real-time ingest |
+
+Refresh **incremental**: chỉ re-embed segment đã đổi (theo hash), không re-process toàn bộ.
+
+---
+
+## 9. Access control
+
+KB có 2 tầng kiểm soát truy cập:
+
+### 9.1 KB-level
+
+Mặc định — `workspace_editor` đọc cả KB; `workspace_viewer` không.
+
+### 9.2 Document-level (v3)
+
+Mỗi document có thể có metadata `access_groups: ["hr_team", "legal"]`. Retrieval **lọc** segment theo group của caller.
+
+Use case: KB nội bộ chứa cả tài liệu công khai + tài liệu HR sensitive — agent của Marketing không retrieve được tài liệu HR.
+
+---
+
+## 10. Use cases nghiệp vụ
+
+### 🎯 Use case A — HR Policy KB
+
+> *"500 trang handbook + 200 FAQ + 50 quy định nội bộ."*
+
+- 750 document → ~8000 segment
+- Embedding: `text-embedding-3-small`
+- Retrieval: Hybrid + rerank
+- Update: hàng quý, manual upload bản mới
+
+### 🎯 Use case B — Product Catalog KB
+
+> *"5000 sản phẩm, mỗi sản phẩm 1 trang mô tả + spec + ảnh."*
+
+- Source: sync từ Notion mỗi đêm
+- Multi-modal v3: thêm image embedding
+- Retrieval: Semantic only (do từ vựng đặc thù)
+
+### 🎯 Use case C — Contracts archive
+
+> *"10,000 hợp đồng cũ làm reference cho legal review."*
+
+- Document-level access control: chỉ Legal team retrieve được
+- Metadata: contract_type, signed_year, party
+- Filter retrieval: chỉ retrieve hợp đồng cùng loại với câu hỏi
+
+---
+
+## 11. Cost & quality metrics
+
+| Metric | Mô tả |
 | --- | --- |
-| KnowledgeBase | Tập document cùng config index (embedding model, chunk size) |
-| Document | 1 file/URL/page nguồn |
-| Segment | 1 chunk text (cùng nghĩa với "chunk") |
-| VectorIndex | Collection trong Vector DB |
+| **Ingest cost** | Embedding tokens dùng để ingest (1 lần / document) |
+| **Retrieval cost** | Embedding query + cost rerank model (per query) |
+| **Top-K relevance @ 5** | Trung bình similarity của top-5 |
+| **Citation rate** | % câu trả lời agent kèm citation |
+| **User feedback** | 👍/👎 trên câu trả lời từ KB |
+| **Cache hit rate** | % query có cache (text query trùng) |
 
-## 3 method retrieval
+---
 
-- **Semantic search** — embed query → ANN trong vector DB
-- **Full-text search** — BM25 / `pg_bigm` / OpenSearch
-- **Hybrid** — kết hợp + rerank
+## 12. Trade-off
 
-## Học từ Dify
+| Quyết định | Lý do | Đánh đổi |
+| --- | --- | --- |
+| **1 KB pin 1 embedding model** | Đảm bảo nhất quán cosine similarity | Đổi model = re-index toàn bộ (đắt) |
+| **Async ingest** | Builder không chờ, có thể vài phút | Cần polling / webhook để biết khi xong |
+| **pgvector MVP** | Đơn giản vận hành | Scale > 10M vector → cần Qdrant/Milvus |
+| **Citation bắt buộc** | Chống bịa, tăng tin tưởng | Hạn chế answer creativity — agent có thể "không biết" thay vì đoán |
+| **Document-level ACL ở v3** | MVP đơn giản trước | KB nhạy cảm trước v3 phải tách thành nhiều KB |
 
-Tham khảo chi tiết tại [research note](/08-references/01-dify) — Dify có pattern `dataset_process_rules` (snapshot rule), `embeddings` cache (dedup theo hash), `child_chunks` (parent-child mode), pipeline cho ingest custom. CAP nên kế thừa.
+---
 
-## Câu hỏi mở
+## 13. Câu hỏi còn mở
 
-- Có hỗ trợ multimodal (ảnh + bảng + voice) không?
-- Reranking model nội bộ hay external?
-- Document có versioning không?
+| # | Câu hỏi | Phiên bản |
+| --- | --- | --- |
+| Q1 | Multimodal (image + table extraction layout-aware) | v3 |
+| Q2 | Reranker model nội bộ (BGE-rerank self-hosted) | v3 |
+| Q3 | Document versioning + history | v3 |
+| Q4 | Graph RAG (knowledge graph augmented) | v4 |
+| Q5 | Citation explainability (giải thích vì sao đoạn này relevant) | v2 |
+| Q6 | Conversational retrieval (refine query qua follow-up) | v2 |
+
+---
+
+## Liên kết
+
+- [Agent](/02-domain/03-agent) — agent retrieval từ KB
+- [Architecture — RAG Pipeline](/03-architecture/05-rag-pipeline) — kỹ thuật chi tiết
+- [Vision § 5 — Tri thức nội bộ ưu tiên](/01-overview/01-vision)
+- [Section 8 — Dify reference](/08-references/01-dify) — patterns Dify dùng

@@ -81,6 +81,16 @@ Khi vẽ, mở shape panel:
 
 ## Danh sách sơ đồ
 
-| File | Trang dùng | Trạng thái |
-| --- | --- | --- |
-| _(chưa có — sẽ điền khi tạo sơ đồ đầu tiên)_ | — | — |
+| Source `.drawio` | Export `.svg` | Trang dùng | Trạng thái |
+| --- | --- | --- | --- |
+| `arch-overview.drawio` | `arch-overview.svg` | [01-overview/02-architecture](../../docs/01-overview/02-architecture.md) — bird's-eye 6 lớp | 🟡 v0.1 — bản dựng ban đầu, có thể edit trong draw.io |
+
+### Edit `arch-overview.drawio`
+
+1. Mở [draw.io desktop](https://github.com/jgraph/drawio-desktop/releases) hoặc [app.diagrams.net](https://app.diagrams.net)
+2. `File → Open → arch-overview.drawio`
+3. Edit (kéo-thả, đổi text, đổi màu, thêm/bớt node)
+4. `File → Export As → SVG...` → lưu đè `arch-overview.svg`
+5. Commit cả 2 file (`.drawio` source + `.svg` export)
+
+> ⚠️ **Quan trọng**: luôn commit cả `.drawio` lẫn `.svg`. Nếu chỉ commit `.drawio` thì doc bị broken. Nếu chỉ commit `.svg` thì lần edit sau không có source.

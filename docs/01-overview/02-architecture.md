@@ -18,165 +18,155 @@ sidebar_position: 2
 
 ## 1. CAP gồm những mảnh ghép nào?
 
-Hệ thống được tổ chức thành **5 lớp chức năng**, mỗi lớp có một trách nhiệm rõ ràng. Cách chia này không phụ thuộc công nghệ cụ thể — nó nói **vai trò trong hệ thống**, không phải sản phẩm cài đặt.
+Hệ thống được tổ chức thành **6 lớp chức năng**, mỗi lớp có một trách nhiệm rõ ràng. Cách chia này không phụ thuộc công nghệ cụ thể — nó nói **vai trò trong hệ thống**, không phải sản phẩm cài đặt.
 
-<div className="cap-arch">
+```mermaid
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+flowchart TB
+    subgraph CLIENT[👤 Người dùng]
+        direction LR
+        WEB[Web Console<br/>builder kéo-thả]
+        EMBED[Chat Embed<br/>iframe / widget]
+        SDK[SDK / REST<br/>hệ thống ngoài]
+    end
 
-<div className="cap-arch__layer cap-arch__layer--clients">
-  <div className="cap-arch__layer-header">👤 Người dùng</div>
-  <div className="cap-arch__grid cap-arch__grid--clients">
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Web Console</div>
-      <div className="cap-arch__node-desc">Builder kéo-thả</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Chat Embed</div>
-      <div className="cap-arch__node-desc">iframe / widget</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">SDK / REST</div>
-      <div className="cap-arch__node-desc">Hệ thống ngoài tích hợp</div>
-    </div>
-  </div>
-</div>
+    subgraph EDGE[🌐 Edge — Cửa ngõ]
+        direction LR
+        LB[Load Balancer + TLS]
+        GW[API Gateway<br/>xác thực · rate limit · định tuyến]
+    end
 
-<div className="cap-arch__arrow">↓</div>
+    subgraph CORE[ ]
+        direction LR
+        subgraph LEFT[ ]
+            direction TB
+            subgraph APP[⚙️ Application — Phần mềm ứng dụng]
+                direction LR
+                CONSOLE[Console API<br/>quản trị, builder]
+                PUBLIC[Public API<br/>chat, gọi agent]
+                ENGINE[Workflow Engine<br/>điều phối luồng]
+                WORKER[Async Worker<br/>tác vụ dài]
+                SCHED[Scheduler<br/>lập lịch, trigger]
+                TOOL[Tool Runtime<br/>sandbox tool]
+            end
+            subgraph LOWER[ ]
+                direction LR
+                subgraph DATA[💾 Data — Dữ liệu]
+                    direction TB
+                    PG[(Metadata DB<br/>cấu hình + RBAC)]
+                    VDB[(Vector DB<br/>embedding)]
+                    REDIS[(Cache + Khoá phân tán)]
+                    BLOB[(Object Storage<br/>file gốc)]
+                    MQ[(Message Queue<br/>tác vụ async)]
+                end
+                subgraph AI[🧠 AI Providers — Trí tuệ]
+                    direction TB
+                    LLM[LLM — Sinh nội dung<br/>OpenAI · Anthropic · Bedrock · vLLM · Ollama]
+                    EMBED_API[Embedding — Mã hoá vector<br/>OpenAI · BGE · Cohere · Voyage]
+                    RERANK[Reranker — Xếp lại kết quả<br/>Cohere · BGE-rerank · Jina]
+                end
+            end
+        end
+        subgraph EXT[☁️ External — Tích hợp ngoài]
+            direction TB
+            CHAT[💬 Kênh giao tiếp<br/>Slack · Teams · Email · Zalo]
+            DOCS[📄 Tài liệu lưu trữ<br/>Drive · SharePoint · Notion]
+            BIZ[🏢 Hệ thống nghiệp vụ<br/>CRM · ERP · HRM · Jira]
+            CUSTOM[🔌 Tích hợp tuỳ biến<br/>REST · Webhook · MCP]
+            IDP[🔐 Định danh SSO<br/>SAML · OAuth · Google · Microsoft]
+        end
+    end
 
-<div className="cap-arch__layer cap-arch__layer--edge">
-  <div className="cap-arch__layer-header">🌐 Lớp Edge — Cửa ngõ</div>
-  <div className="cap-arch__grid cap-arch__grid--edge">
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Load Balancer + TLS</div>
-      <div className="cap-arch__node-desc">Terminate HTTPS, phân tải</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">API Gateway</div>
-      <div className="cap-arch__node-desc">Xác thực · rate limit · định tuyến</div>
-    </div>
-  </div>
-</div>
+    subgraph OBS[📊 Observability — Quan sát xuyên suốt]
+        OTEL[Telemetry pipeline<br/>trace + log + metric]
+    end
 
-<div className="cap-arch__arrow">↓</div>
+    WEB --> LB
+    EMBED --> LB
+    SDK --> LB
+    LB --> GW
+    GW --> CONSOLE
+    GW --> PUBLIC
+    GW --> IDP
+    PUBLIC --> ENGINE
 
-<div className="cap-arch__layer cap-arch__layer--app">
-  <div className="cap-arch__layer-header">⚙️ Lớp Application — Phần mềm ứng dụng</div>
-  <div className="cap-arch__grid cap-arch__grid--app">
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Console API</div>
-      <div className="cap-arch__node-desc">Quản trị, builder</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Public API</div>
-      <div className="cap-arch__node-desc">Chat, gọi agent</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Workflow Engine</div>
-      <div className="cap-arch__node-desc">Điều phối luồng</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Async Worker</div>
-      <div className="cap-arch__node-desc">Tác vụ dài</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Scheduler</div>
-      <div className="cap-arch__node-desc">Lập lịch, trigger</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Tool Runtime</div>
-      <div className="cap-arch__node-desc">Sandbox tool</div>
-    </div>
-  </div>
-</div>
+    ENGINE --> TOOL
+    ENGINE -.đọc/ghi.-> PG
+    ENGINE -.cache.-> REDIS
+    ENGINE -.tra cứu.-> VDB
+    ENGINE -.phát.-> MQ
 
-<div className="cap-arch__arrow">↓ &nbsp; ↓ &nbsp; ↓</div>
+    WORKER <-.tiêu thụ.-> MQ
+    WORKER -.upsert.-> VDB
+    WORKER -.đọc.-> BLOB
+    CONSOLE -.lưu.-> PG
+    SCHED -.phát.-> MQ
 
-<div className="cap-arch__row">
+    ENGINE --> LLM
+    ENGINE --> RERANK
+    WORKER --> EMBED_API
 
-<div className="cap-arch__layer cap-arch__layer--data">
-  <div className="cap-arch__layer-header">💾 Lớp Data — Dữ liệu</div>
-  <div className="cap-arch__grid cap-arch__grid--data">
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Metadata DB</div>
-      <div className="cap-arch__node-desc">Cấu hình + RBAC</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Vector DB</div>
-      <div className="cap-arch__node-desc">Embedding</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Cache + Khoá</div>
-      <div className="cap-arch__node-desc">Phân tán</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Object Storage</div>
-      <div className="cap-arch__node-desc">File gốc</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__node-title">Message Queue</div>
-      <div className="cap-arch__node-desc">Tác vụ async</div>
-    </div>
-  </div>
-</div>
+    TOOL --> CHAT
+    TOOL --> DOCS
+    TOOL --> BIZ
+    TOOL --> CUSTOM
 
-<div className="cap-arch__layer cap-arch__layer--ext">
-  <div className="cap-arch__layer-header">☁️ Lớp External — Kết nối ngoài</div>
-  <div className="cap-arch__grid cap-arch__grid--ext">
-    <div className="cap-arch__node">
-      <div className="cap-arch__sub-title">🧠 Nhà cung cấp AI</div>
-      <div className="cap-arch__sub-items">OpenAI · Anthropic · Bedrock · vLLM · Ollama · BGE · Cohere</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__sub-title">💬 Kênh giao tiếp</div>
-      <div className="cap-arch__sub-items">Slack · MS Teams · Email · Zalo · Telegram · Webchat</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__sub-title">📄 Tài liệu & lưu trữ</div>
-      <div className="cap-arch__sub-items">Google Drive · SharePoint · Notion · OneDrive · Confluence</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__sub-title">🏢 Hệ thống nghiệp vụ</div>
-      <div className="cap-arch__sub-items">CRM · ERP · HRM · ITSM · Jira · Salesforce · HubSpot</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__sub-title">🔌 Tích hợp tuỳ biến</div>
-      <div className="cap-arch__sub-items">REST · GraphQL · Webhook in/out · MCP servers</div>
-    </div>
-    <div className="cap-arch__node">
-      <div className="cap-arch__sub-title">🔐 Định danh & SSO</div>
-      <div className="cap-arch__sub-items">SAML · OAuth · Google · Microsoft · Azure AD</div>
-    </div>
-  </div>
-</div>
+    APP -.phát telemetry.-> OBS
 
-</div>
+    classDef clientStyle fill:#f9fafb,stroke:#6b7280,color:#374151
+    classDef edgeStyle fill:#eff6ff,stroke:#3b82f6,color:#1e40af
+    classDef appStyle fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    classDef aiStyle fill:#ecfeff,stroke:#06b6d4,color:#0e7490
+    classDef dataStyle fill:#ecfdf5,stroke:#10b981,color:#047857
+    classDef extStyle fill:#fef2f2,stroke:#ef4444,color:#b91c1c
+    classDef obsStyle fill:#faf5ff,stroke:#8b5cf6,color:#6d28d9
+    classDef wrapper fill:none,stroke:none,color:transparent
 
-<div className="cap-arch__arrow">↑ &nbsp; ↑ &nbsp; ↑</div>
+    class CLIENT clientStyle
+    class EDGE edgeStyle
+    class APP appStyle
+    class AI aiStyle
+    class DATA dataStyle
+    class EXT extStyle
+    class OBS obsStyle
+    class CORE,LEFT,LOWER wrapper
+```
+![Sơ đồ kiến trúc](/diagrams/arch-overview.svg)
 
-<div className="cap-arch__layer cap-arch__layer--obs">
-  <div className="cap-arch__layer-header">📊 Lớp Observability — Quan sát xuyên suốt</div>
-  <div className="cap-arch__node">
-    <div className="cap-arch__node-title">Telemetry pipeline</div>
-    <div className="cap-arch__node-desc">Mọi service phát trace · log · metric → debug, audit, đo chi phí theo tenant / workspace</div>
-  </div>
-</div>
-
-<div className="cap-arch__caption">5 lớp chức năng + lớp Observability xuyên suốt — chi tiết kết nối ở 3 sequence diagram bên dưới</div>
-
-</div>
-
-### 1.1 Vai trò 5 lớp
+### 1.1 Vai trò 6 lớp
 
 | Lớp | Trách nhiệm chính | Vì sao tách riêng |
 | --- | --- | --- |
 | **Edge — Cửa ngõ** | Tiếp nhận mọi traffic, kiểm token, chống lạm dụng (rate limit, DDoS), định tuyến đến đúng service | Là điểm vào duy nhất → dễ áp dụng chính sách bảo mật tập trung; không lưu dữ liệu nên nhân bản tự do |
 | **Application — Phần mềm ứng dụng** | Nơi sản phẩm "sống": quản trị, builder, chat, điều phối workflow, thực thi tool | Tách thành nhiều service nhỏ để mở rộng độc lập theo loại tải (xem 1.2) |
+| **AI Providers — Trí tuệ** | Mô hình ngôn ngữ (LLM), mã hoá vector (embedding), xếp lại kết quả (rerank) | Tách riêng khỏi External vì là **lõi nghiệp vụ AI** — chiếm phần lớn chi phí, được Engine/Worker gọi xuyên suốt mọi luồng (xem 1.3) |
 | **Data — Dữ liệu** | Lưu trữ mọi loại dữ liệu: cấu hình, embedding, cache, file gốc, hàng đợi tác vụ | Mỗi loại dữ liệu có đặc thù riêng (truy vấn quan hệ vs ANN vs blob…) → tách store đúng loại, dễ scale |
+| **External — Tích hợp ngoài** | Hệ thống của khách hàng và bên thứ 3 mà CAP cần kết nối: chat, lưu trữ, ERP/CRM, MCP, SSO | Tách riêng để áp policy outbound, đổi tích hợp dễ, không nhầm với AI lõi (xem 1.4) |
 | **Observability — Quan sát** | Thu thập trace, log, metric từ mọi service; phục vụ debug, audit, đo chi phí | Là yêu cầu **bắt buộc** cho enterprise (xem nguyên tắc "Quan sát được mặc định" trong [Vision](/01-overview/01-vision)) |
-| **External — Kết nối ngoài** | Mọi thứ không thuộc CAP: nhà cung cấp LLM, API tổ chức bên ngoài, MCP server | Tách riêng để có thể đổi provider, tách credential, áp policy outbound |
 
 ### 1.2 Trong lớp Application có gì?
 
-Đây là lớp đa dạng nhất — chia thành **6 service** dựa trên **risk profile** và **scaling profile** khác nhau:
+Đây là lớp đa dạng nhất — chia thành **6 service** dựa trên **risk profile** và **scaling profile** khác nhau. Quan hệ gọi giữa các service:
+
+```mermaid
+flowchart LR
+    Console[Console API] -.lưu cấu hình.-> PG[(Metadata DB)]
+    Public[Public API] -->|chat / invoke| Engine[Workflow Engine]
+    Engine -->|gọi tool| Tool[Tool Runtime]
+    Sched[Scheduler] -.publish.-> MQ[(Message Queue)]
+    MQ -.consume.-> Worker[Async Worker]
+
+    style Console fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    style Public fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    style Engine fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    style Worker fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    style Sched fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    style Tool fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    style PG fill:#ecfdf5,stroke:#10b981,color:#047857
+    style MQ fill:#ecfdf5,stroke:#10b981,color:#047857
+```
+
+> 🔑 Hai nhóm rõ rệt: **sync** (`Public → Engine → Tool` cho mỗi lượt chat) và **async** (`Scheduler → MQ → Worker` cho tác vụ nền). Console hoạt động độc lập, chủ yếu là CRUD vào Metadata DB.
 
 | Service | Phục vụ ai | Vì sao tách riêng |
 | --- | --- | --- |
@@ -189,13 +179,59 @@ Hệ thống được tổ chức thành **5 lớp chức năng**, mỗi lớp c
 
 > **Lưu ý cho MVP**: 6 service trên là **logical separation**. Trên hạ tầng thực tế, MVP có thể gộp một số service lại để giảm độ phức tạp vận hành. Chi tiết phasing ở [Section 3 — Services](/03-architecture/01-services).
 
-### 1.3 Trong lớp External có gì?
+### 1.3 Trong lớp AI Providers có gì?
 
-CAP kết nối ra ngoài qua **6 nhóm tích hợp** — mỗi nhóm có service trong CAP đứng ra gọi, và có chính sách bảo mật / quota riêng:
+Đây là **lõi nghiệp vụ AI** — tách ra khỏi External vì chiếm phần lớn chi phí vận hành và được gọi xuyên suốt mọi luồng. Mỗi workspace tự cấu hình provider và model muốn dùng.
+
+```mermaid
+flowchart LR
+    Engine[Workflow Engine] -->|sinh response,<br/>gọi tool| LLM[LLM]
+    Engine -->|sau retrieval,<br/>xếp top-K| Rerank[Reranker]
+    Engine -->|embed query<br/>người dùng| Embed[Embedding]
+    Worker[Async Worker] -->|embed chunk<br/>khi ingest| Embed
+
+    style Engine fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    style Worker fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    style LLM fill:#ecfeff,stroke:#06b6d4,color:#0e7490
+    style Rerank fill:#ecfeff,stroke:#06b6d4,color:#0e7490
+    style Embed fill:#ecfeff,stroke:#06b6d4,color:#0e7490
+```
+
+> 🔑 Embedding được **2 nơi gọi** (Engine cho query người dùng, Worker cho chunk lúc ingest) — đó là lý do nó luôn được cache theo hash text, tránh re-embed cùng nội dung.
+
+| Loại | Mục đích | Ai trong CAP gọi | Ví dụ |
+| --- | --- | --- | --- |
+| **LLM — Sinh nội dung** | Tạo câu trả lời, gọi tool, phân tích văn bản | Workflow Engine (mỗi lượt chat hoặc node LLM trong workflow) | OpenAI · Anthropic · Bedrock · Google Vertex · vLLM · Ollama |
+| **Embedding — Mã hoá vector** | Biến văn bản thành vector để retrieval | Async Worker (lúc ingest tài liệu) · Engine (lúc nhận query người dùng) | OpenAI · BGE · Cohere · Voyage |
+| **Reranker — Xếp lại kết quả** | Sắp xếp lại top-K từ vector search để tăng độ chính xác | Workflow Engine (sau retrieval, trước khi đưa vào prompt) | Cohere · BGE-rerank · Jina |
+
+> **Nguyên tắc đổi provider**: lớp gọi AI được trừu tượng hoá — đổi provider không phải xây lại agent (xem [Vision § 3.4](/01-overview/01-vision)). Credential mỗi tenant riêng, mã hoá tại nơi lưu trữ.
+
+### 1.4 Trong lớp External có gì?
+
+External là **các hệ thống của khách hàng và bên thứ 3** — CAP gọi ra để lấy/ghi dữ liệu nghiệp vụ hoặc đẩy thông báo. Mỗi nhóm có service trong CAP đứng ra gọi và áp policy riêng:
+
+```mermaid
+flowchart LR
+    GW[API Gateway] -->|xác thực| IDP[🔐 Định danh & SSO]
+    Tool[Tool Runtime] --> Chat[💬 Kênh giao tiếp]
+    Tool --> Docs[📄 Tài liệu & lưu trữ]
+    Tool --> Biz[🏢 Hệ thống nghiệp vụ]
+    Tool --> Custom[🔌 Tích hợp tuỳ biến]
+
+    style GW fill:#eff6ff,stroke:#3b82f6,color:#1e40af
+    style Tool fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    style IDP fill:#fef2f2,stroke:#ef4444,color:#b91c1c
+    style Chat fill:#fef2f2,stroke:#ef4444,color:#b91c1c
+    style Docs fill:#fef2f2,stroke:#ef4444,color:#b91c1c
+    style Biz fill:#fef2f2,stroke:#ef4444,color:#b91c1c
+    style Custom fill:#fef2f2,stroke:#ef4444,color:#b91c1c
+```
+
+> 🔑 **2 đường gọi External khác nhau**: SSO/Identity gọi từ **API Gateway** (lúc xác thực, chưa vào hệ thống); 4 nhóm còn lại gọi qua **Tool Runtime** (sandbox cách ly, không cho tool truy cập DB).
 
 | Nhóm | Mục đích | Ai trong CAP gọi | Ví dụ |
 | --- | --- | --- | --- |
-| 🧠 **Nhà cung cấp AI** | Sinh nội dung, embedding, rerank kết quả | Engine (LLM, Rerank); Worker (Embedding khi ingest) | OpenAI, Anthropic, Bedrock, vLLM, Ollama, BGE, Cohere |
 | 💬 **Kênh giao tiếp** | Tiếp nhận tin nhắn từ user hoặc gửi notification đi | Tool Runtime (qua tool tương ứng) | Slack, MS Teams, Email, Zalo, Telegram, Webchat |
 | 📄 **Tài liệu & lưu trữ** | Nguồn tri thức cho RAG; ghi kết quả ra cloud | Tool Runtime (gọi tool); Worker (đồng bộ định kỳ) | Google Drive, SharePoint, Notion, OneDrive, Confluence |
 | 🏢 **Hệ thống nghiệp vụ** | Tra cứu / ghi dữ liệu nghiệp vụ của tổ chức | Tool Runtime | CRM, ERP, HRM, ITSM, Jira, Salesforce, HubSpot |
