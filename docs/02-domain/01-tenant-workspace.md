@@ -21,6 +21,34 @@ CAP tách **2 cấp tổ chức** thay vì 1 — đây là quyết định cốt
 | **Tenant** | Một tổ chức / khách hàng / pháp nhân riêng biệt. Là **đơn vị isolation cao nhất** | Billing, plan, audit, region | CMC Tập đoàn · FPT · MoMo |
 | **Workspace** | Một không gian làm việc trong tenant. Thường = phòng ban / dự án / sản phẩm | Thành viên + tài nguyên (agent, tool, KB, workflow) | `cmc-hr-bot`, `cmc-helpdesk`, `fpt-sales-assistant` |
 
+```mermaid
+flowchart TB
+    T[🏢 Tenant: CMC Tập đoàn<br/>billing · plan · audit · region]
+    T --> W1[📁 Workspace<br/>HR-Bot]
+    T --> W2[📁 Workspace<br/>Helpdesk]
+    T --> W3[📁 Workspace<br/>Sales Assistant]
+
+    W1 --> R1[Agent · Tool<br/>Knowledge · Workflow]
+    W2 --> R2[Agent · Tool<br/>Knowledge · Workflow]
+    W3 --> R3[Agent · Tool<br/>Knowledge · Workflow]
+
+    M[👥 Member<br/>nam@cmc.vn]
+    M -.member.-> T
+    M -.editor.-> W1
+    M -.viewer.-> W2
+
+    style T fill:#eff6ff,stroke:#3b82f6,color:#1e40af
+    style W1 fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    style W2 fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    style W3 fill:#fffbeb,stroke:#f59e0b,color:#b45309
+    style R1 fill:#ecfdf5,stroke:#10b981,color:#047857
+    style R2 fill:#ecfdf5,stroke:#10b981,color:#047857
+    style R3 fill:#ecfdf5,stroke:#10b981,color:#047857
+    style M fill:#f9fafb,stroke:#6b7280,color:#374151
+```
+
+> 🔑 **1 member có thể thuộc nhiều workspace** trong cùng tenant, với role khác nhau ở mỗi workspace. Billing và audit gộp về Tenant; tài nguyên tách theo Workspace.
+
 ### 1.1 Vì sao cần Workspace, không chỉ Tenant
 
 Phù hợp với [Vision § 3.4 — Tự chủ công nghệ](/01-overview/01-vision) và một trong 4 nỗi đau khách hàng:
