@@ -6,9 +6,32 @@ sidebar_position: 2
 
 🟡 Draft — v0.1
 
-> Trang này định nghĩa **mô hình quản trị truy cập** của CAP: ai làm được gì, với tài nguyên nào, trong phạm vi nào. Đối tượng đọc: Lãnh đạo tổ chức, Quản trị workspace, đội Compliance/Bảo mật, kiến trúc sư.
->
-> Chi tiết kỹ thuật (JWT, token rotation, SSO flow…) ở [Section 3 — Auth Flow](/03-architecture/07-auth-flow).
+## IAM & RBAC là gì
+
+**IAM (Identity & Access Management)** và **RBAC (Role-Based Access Control)** là **hệ thống cửa khoá** của CAP — quyết định **ai** được phép làm **gì**, với **tài nguyên nào**, trong **phạm vi nào**. Mọi request gọi vào CAP đều đi qua tầng này; không có "đường tắt" bỏ check.
+
+**5 khái niệm cốt lõi, phép hình dung**:
+
+| Khái niệm | Hình dung | Ví dụ |
+| --- | --- | --- |
+| **Principal** | "Người gõ cửa" — chủ thể đang yêu cầu truy cập | Account `nam@cmc.vn`, service account `bot-payroll`, API key `ak_xxx` |
+| **Permission** | "Chìa khoá cụ thể" — một hành động được đặt tên | `workflow.create`, `agent.publish`, `tenant.billing.read` |
+| **Role** | "Chùm chìa khoá" — một bộ permission đặt tên gọn | `workspace_admin`, `editor`, `viewer`, `auditor` |
+| **Scope** | "Phòng nào trong toà nhà" — chùm chìa khoá đó dùng được ở đâu | `tenant:cmc-corp`, `workspace:ws-hr-bot`, `resource:agent/abc123` |
+| **Policy** | "Thẻ chấm công" — gắn 3 cái trên thành 1 record có thể audit/revoke | `(nam@cmc.vn, workspace_editor, ws-hr-bot)` |
+
+**Ví dụ cụ thể**: chị Nam có Policy = `(nam@cmc.vn, workspace_editor, ws-hr-bot)` → trong workspace HR-Bot tạo được agent, sửa được workflow, không xoá được billing của tenant, không thấy workspace `sales-assistant`. Khi chị Nam nghỉ việc, **revoke 1 policy** là cắt mọi truy cập.
+
+**Vì sao CAP cần RBAC chi tiết, không dùng "Admin/Editor/Viewer" cố định**: doanh nghiệp thật có cấu trúc phức tạp — auditor chỉ đọc log không sửa, content editor chỉ sửa KB không deploy, người vận hành chỉ chạy workflow không tạo. Mô hình 3 role cố định không cover nổi. CAP cho phép **tạo role tuỳ biến** từ bộ permission ngay từ MVP. Chi tiết lập luận ở §1.
+
+**Đọc trang này nếu bạn là**:
+
+- **Quản trị tenant / workspace** — sắp setup role cho team, cần thuật ngữ + bộ role mặc định.
+- **Đội Compliance / Security** — cần hiểu mô hình audit, deny-by-default, least-privilege để đánh giá.
+- **BA viết yêu cầu phân quyền** — cần thuật ngữ chuẩn để brief dev.
+- **Dev tích hợp** — cần biết permission model để gọi API đúng scope, không bị 403 oan.
+
+**Trang liên quan**: [Tenant & Workspace](/02-domain/01-tenant-workspace) (cấu trúc tổ chức) · [Auth Flow](/03-architecture/07-auth-flow) (JWT/SSO kỹ thuật).
 
 ---
 

@@ -6,20 +6,43 @@ sidebar_position: 3
 
 🟡 Draft — v0.1
 
-> Trang này định nghĩa **khái niệm Agent** trong CAP — đối tượng AI phục vụ end-user hoặc tham gia workflow. Đối tượng đọc: BA, PO, builder, kiến trúc sư.
->
-> Chi tiết kỹ thuật (model invocation, prompt rendering, tool dispatch) ở [Section 3 — Workflow Engine](/03-architecture/03-workflow-engine).
+## Agent là gì
+
+**Agent** là **"nhân viên ảo"** mà builder tạo ra trên CAP. Mỗi agent có **vai trò** (CSKH, tra cứu chính sách HR, tư vấn sản phẩm…), **tri thức** (gắn với Knowledge Base nội bộ), **kỹ năng** (gắn với Tool để gọi API/hệ thống) và **quy tắc ứng xử** (system prompt). End-user trò chuyện với agent qua chat; mỗi lượt, agent dùng LLM để tự quyết định: **trả lời thẳng**, **tra Knowledge Base**, **gọi Tool**, hay **chuyển cho người thật**.
+
+**Phép hình dung**:
+
+- Agent ≈ **một nhân viên mới** — có **mô tả công việc** (prompt), được phát **tài liệu để đọc** (KB), được phát **quyền dùng các app nội bộ** (Tool), và có **sếp giám sát chi tiêu** (safety + cost limit).
+- **AgentVersion** ≈ **một bản hợp đồng đã ký** — bất biến sau khi publish. Sửa "mô tả công việc" thì cần publish lại; bản đang phục vụ khách hàng không bị thay đột ngột.
+- **Memory** ≈ "trí nhớ ngắn hạn" của agent trong một phiên chat — không phải biết-tuốt vĩnh viễn.
+
+**Ví dụ cụ thể**: agent `cmc-hr-helpdesk` —
+
+- **Vai trò**: trả lời câu hỏi nhân viên về nghỉ phép / chấm công / phúc lợi.
+- **Đọc**: KB `chinh-sach-hr-2026` (80 file PDF chính sách).
+- **Kỹ năng**: Tool `submit_leave_request` (gọi API HRMS), Tool `check_remaining_days` (query HR DB).
+- **Quy tắc**: trả lời ngắn gọn, kèm trích dẫn, không bao giờ tiết lộ lương người khác, vượt thẩm quyền → handoff cho HR người thật.
+
+**Agent khác Workflow ở đâu**: Agent **suy luận theo từng lượt chat** — LLM quyết bước tiếp theo, phù hợp với hội thoại mở. Workflow **đi theo sơ đồ cố định** — mỗi bước có vai trò rõ, phù hợp với quy trình lặp đi lặp lại. Hai loại có thể **gọi lẫn nhau**: workflow chèn agent làm 1 bước; agent gọi workflow như một tool. Bảng so sánh chi tiết: §1.1.
+
+**Đọc trang này nếu bạn là**:
+
+- **BA / PO** — đang định nghĩa "trợ lý X" cho phòng ban, cần biết Agent gồm những phần gì để brief.
+- **Builder no-code** — sắp tạo agent đầu tiên, cần hiểu các trường cấu hình + workflow publish.
+- **Kiến trúc sư / Dev** — cần map khái niệm Agent vào service/data layer.
+
+**Trang liên quan**: [Tool](/02-domain/04-tool) (kỹ năng của agent) · [Knowledge Base](/02-domain/05-knowledge) (tri thức của agent) · [Workflow](/02-domain/06-workflow) (so với agent) · [Conversation](/02-domain/07-conversation) (lượt chat với agent) · [Workflow Engine](/03-architecture/03-workflow-engine) (cách agent chạy bên trong).
 
 ---
 
 ## 1. Vì sao Agent
 
-Agent là **đơn vị giá trị nghiệp vụ** mà builder tạo ra trên CAP. Nếu ví CAP là "AWS cho AI", thì Agent là "EC2 instance" — đối tượng cụ thể người dùng tương tác.
+Agent là **đơn vị giá trị nghiệp vụ** mà builder tạo ra trên CAP — nếu ví CAP là "AWS cho AI" thì Agent là "EC2 instance", đối tượng cụ thể end-user tương tác. Đây là nơi vision của CAP được hiện thực hoá cho phòng ban / tổ chức cụ thể.
 
-Liên hệ với [Vision](/01-overview/01-vision):
+Hai cam kết cốt lõi trong [Vision](/01-overview/01-vision) được Agent trực tiếp hiện thực hoá:
 
-- **§ 3 — Trao quyền nghiệp vụ**: BA/PM tạo Agent qua UI no-code → giải bài toán phòng ban mà không cần dev
-- **§ 5 — Tri thức nội bộ ưu tiên**: Agent gắn với Knowledge Base của tổ chức → trả lời có dẫn nguồn, không bịa
+- **§ 3 — Trao quyền nghiệp vụ**: BA/PM tạo Agent qua UI no-code → giải bài toán phòng ban mà không cần dev.
+- **§ 5 — Tri thức nội bộ ưu tiên**: Agent gắn với Knowledge Base của tổ chức → trả lời có dẫn nguồn, không bịa.
 
 ### 1.1 Agent vs Workflow — khác nhau ở đâu
 
@@ -63,6 +86,7 @@ erDiagram
 
     Agent {
         string id
+        string tenant_id
         string workspace_id
         string name
         string display_name
@@ -71,6 +95,19 @@ erDiagram
         string status "draft|published|archived"
         string published_version_id
         datetime created_at
+    }
+    AgentVersion {
+        string id
+        string agent_id
+        string tenant_id
+        string workspace_id
+        int version
+        string model_config_id
+        string prompt_template_id
+        string memory_config_id
+        string safety_config_id
+        datetime published_at
+        string published_by
     }
 ```
 
@@ -91,25 +128,52 @@ erDiagram
 
 ## 4. 3 loại Agent
 
-CAP hỗ trợ 3 mô hình tương tác — config khác nhau:
+Cùng là Agent, cùng entity, nhưng **mô hình tương tác** khác nhau dẫn đến config + cost + UX khác nhau. Builder cần biết để chọn đúng loại ngay đầu — đổi loại sau khi đã chạy production là việc đau.
 
-### 4.1 Chatbot conversational (most common)
+| Tiêu chí | 4.1 Chatbot | 4.2 Task autonomous | 4.3 Workflow step |
+| --- | --- | --- | --- |
+| **Ai gọi** | End-user (qua chat UI / embed / Slack) | Trigger (user nhấn nút, schedule, webhook) | Workflow Engine — agent là 1 node |
+| **Hình thái** | Multi-turn hội thoại | One-shot task, agent tự loop nội bộ | One-shot, input/output có schema cứng |
+| **Memory** | ✅ Nhớ trong cùng phiên chat | ⚠️ Chỉ trong 1 task, không cross-task | ❌ Không có, mỗi lần chạy độc lập |
+| **Streaming** | ✅ SSE từng token | ❌ Đợi xong cả task | ❌ Trả 1 cục output cho workflow |
+| **Input** | Free-form text | Free-form text + cấu trúc | JSON schema cứng |
+| **Output** | Free-form + có thể có UI element | Final answer + intermediate trace | JSON schema cứng |
+| **Max iterations** | Không cố định (per turn ~3-5 tool call) | High (10-30 step) | Thấp (1-3 step) |
+| **Chi phí mỗi lần** | Thấp/turn nhưng kéo dài | Cao mỗi task | Vừa — đoán được |
 
-Multi-turn với end-user. Giữ memory của conversation. Stream từng token.
+### 4.1 Chatbot conversational
 
-**Use case**: HR FAQ, Customer support, Internal helpdesk.
+Loại phổ biến nhất. Agent multi-turn với end-user, có memory ngữ cảnh phiên chat, stream từng token để cảm giác phản hồi nhanh.
+
+**Khi nào chọn**: bài toán cần **đối thoại** — user hỏi → agent đáp → user hỏi tiếp dựa trên trả lời trước.
+
+**Ví dụ cụ thể**: agent `cmc-hr-helpdesk` — nhân viên hỏi *"Tôi còn bao nhiêu ngày phép?"* → agent retrieve KB + gọi tool → trả lời + đề xuất *"Bạn có muốn xin nghỉ luôn không?"* → user *"Có, thứ 6 này"* → agent gọi tool `submit_leave_request` (nhớ context người này từ turn trước).
+
+**Use case điển hình**: Customer support · HR helpdesk · IT helpdesk · Sales pre-consult · Tư vấn sản phẩm.
 
 ### 4.2 Task autonomous
 
-Nhận task, tự quyết tool chain, tự loop tới khi xong (max N steps). Không có user input giữa chừng (trừ khi explicit `human_input` node).
+Agent nhận **1 task duy nhất**, **tự quyết chuỗi tool cần gọi**, tự lặp tới khi xong (max N step). Không có user input giữa chừng (trừ khi gặp node `human_input`).
 
-**Use case**: Compliance reviewer (đọc document → check rules → output report), Lead qualifier.
+**Khi nào chọn**: bài toán có **đầu vào rõ + đầu ra rõ** nhưng các bước ở giữa **phụ thuộc nội dung**, không xếp trước được — cần LLM tự khám phá.
+
+**Ví dụ cụ thể**: agent `compliance-reviewer` — nhận 1 file hợp đồng → tự quyết: (1) gọi tool `extract_clauses` → (2) so từng điều khoản với checklist quy định → (3) phát hiện điều khoản lạ → gọi `search_precedent` để tìm tiền lệ → (4) viết báo cáo + đính rủi ro. Số bước không đoán trước được, phụ thuộc hợp đồng dài/ngắn và có bao nhiêu điều khoản lạ.
+
+**Use case điển hình**: Compliance reviewer · Lead qualifier · Tự động điều tra incident · Tự động thu thập + tóm tắt báo cáo cạnh tranh.
+
+**Cảnh báo**: chi phí cao + khó debug nếu loop dài. **Bắt buộc** set `max_iterations` và `max_cost_per_run` để tránh runaway.
 
 ### 4.3 Workflow step
 
-Agent là **1 node trong workflow** — nhận input có schema, output có schema. Không có memory cross-run.
+Agent là **1 node** trong workflow lớn hơn. Input/output có **JSON schema cứng**, không có memory, không stream cho user.
 
-**Use case**: Bóc tách thông tin từ hợp đồng, dịch ngôn ngữ, classify request.
+**Khi nào chọn**: bài toán cần LLM reasoning nhưng nằm trong quy trình lớn có nhiều bước deterministic; phần phía trước/sau là tool/code/branch, chỉ riêng bước này cần "nghĩ".
+
+**Ví dụ cụ thể**: workflow `xu-ly-don-hang` có 5 node — (1) `tool: receive_order` → (2) **`agent: classify_intent`** (chính đây — agent xếp đơn vào loại standard/special/refund) → (3) `branch: theo loại` → (4) `tool: process` → (5) `tool: notify`. Agent node nhận `{order_text: ...}`, trả `{intent: "standard|special|refund", reason: "..."}` đúng schema để branch hoạt động.
+
+**Use case điển hình**: Bóc tách thông tin từ hợp đồng/email · Dịch ngôn ngữ · Classify request · Sinh draft email cá nhân hoá · Phân tích sentiment.
+
+> 💡 **Quyết định nhanh**: end-user gõ chat → 4.1. Trigger tự động + bước phụ thuộc nội dung → 4.2. Là 1 mắt xích trong quy trình lớn → 4.3.
 
 ---
 

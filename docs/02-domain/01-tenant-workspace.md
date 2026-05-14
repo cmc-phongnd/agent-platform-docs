@@ -6,9 +6,27 @@ sidebar_position: 1
 
 🟡 Draft — v0.1
 
-> Trang này định nghĩa **mô hình 2 cấp tổ chức** của CAP: Tenant (tổ chức/khách hàng) chứa Workspace (đơn vị làm việc). Đối tượng đọc: Lãnh đạo tổ chức, Quản trị workspace, kiến trúc sư.
->
-> Chi tiết kỹ thuật multi-tenant isolation ở [Section 3 — Multi-tenant Isolation](/03-architecture/06-multi-tenant). Cách phân quyền chi tiết ở [IAM & RBAC](/02-domain/02-iam-rbac).
+## Tenant & Workspace là gì
+
+CAP tổ chức mọi thứ theo **2 cấp**: **Tenant** chứa nhiều **Workspace**. Mọi tài nguyên — agent, tool, knowledge base, workflow, member — đều sống trong một workspace, dưới một tenant nhất định. Hai cấp này quyết định **ai ký hợp đồng**, **ai trả tiền**, **dữ liệu cách ly đến đâu**, và **một nhân viên có thể đi qua những phòng nào**.
+
+**Phép hình dung**:
+
+- **Tenant** ≈ "**công ty**" trong hệ thống — pháp nhân, đơn vị ký hợp đồng, đơn vị xuất hoá đơn, đơn vị bị audit. Dữ liệu của 2 tenant **không bao giờ** nhìn thấy nhau.
+- **Workspace** ≈ "**phòng ban / dự án / sản phẩm**" trong công ty đó — đơn vị làm việc thực tế. Một người có thể vào nhiều workspace trong cùng tenant, với vai trò khác nhau ở mỗi nơi.
+- **Account** ≈ "**hộ chiếu**" của một người — định danh toàn cục, dùng 1 SSO login để vào mọi tenant/workspace mà người đó được mời.
+
+**Ví dụ cụ thể**: Tập đoàn CMC (1 tenant `cmc-corp`) có 3 workspace: `hr-bot`, `helpdesk`, `sales-assistant`. Chị Nam (1 account `nam@cmc.vn`) là `workspace_editor` ở `hr-bot` và `viewer` ở `helpdesk`, không thấy `sales-assistant`. Chi phí AI của cả 3 workspace gộp về **một hoá đơn duy nhất** xuất cho Tập đoàn.
+
+**Vì sao 2 cấp, không phải 1**: nếu chỉ có Tenant (như Dify), tổ chức lớn buộc phải hoặc tạo nhiều tenant rời rạc (không share knowledge / cost), hoặc dồn vào 1 tenant (mọi phòng ban thấy resource của nhau). 2 cấp giải đồng thời cả hai bài toán — chi tiết lập luận ở §1.
+
+**Đọc trang này nếu bạn là**:
+
+- **Lãnh đạo tổ chức / Giám đốc IT** — quyết định mô hình ký hợp đồng, hoá đơn, isolation, vùng dữ liệu.
+- **Quản trị tenant / workspace** — cần biết quyền của mình đến đâu, ở trên còn ai.
+- **BA / kiến trúc sư giải pháp** — đang map cơ cấu tổ chức khách hàng vào setup CAP.
+
+**Trang liên quan**: [IAM & RBAC](/02-domain/02-iam-rbac) (phân quyền chi tiết) · [Multi-tenant Isolation](/03-architecture/06-multi-tenant) (cài đặt kỹ thuật).
 
 ---
 

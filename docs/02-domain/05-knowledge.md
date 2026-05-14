@@ -6,17 +6,48 @@ sidebar_position: 5
 
 🟡 Draft — v0.1
 
-> Trang này định nghĩa **Knowledge Base (KB)** — nơi chứa tri thức nội bộ của tổ chức để agent retrieval khi trả lời. Đối tượng đọc: BA, content editor, kiến trúc sư.
->
-> Chi tiết kỹ thuật pipeline RAG ở [Section 3 — RAG Pipeline](/03-architecture/05-rag-pipeline).
+## Knowledge Base là gì
+
+**Knowledge Base (KB)** là **"thư viện riêng của tổ chức"** — nơi nạp tài liệu nội bộ (chính sách HR, hợp đồng mẫu, mô tả sản phẩm, FAQ, sổ tay kỹ thuật, biên bản họp…) để agent **tham chiếu khi trả lời**. Mọi câu trả lời từ KB đều **kèm trích dẫn nguồn** (document + đoạn cụ thể) — agent **không "bịa"**, người dùng có thể click để mở tài liệu gốc và kiểm chứng.
+
+KB hoạt động theo mô hình **RAG (Retrieval-Augmented Generation)**: tài liệu → cắt thành đoạn (segment) → biểu diễn thành vector → khi user hỏi, hệ thống tìm các đoạn **gần nghĩa nhất** với câu hỏi → đưa các đoạn đó cùng câu hỏi cho LLM tổng hợp ra câu trả lời.
+
+**Phép hình dung**:
+
+- KB ≈ **kho sách của công ty**; agent là **thủ thư** biết tra đúng trang cần.
+- **Document** ≈ **một cuốn sách** — file PDF/DOCX/MD, URL trang web, page Confluence/Notion.
+- **Segment / Chunk** ≈ **một đoạn được đánh dấu trong sách** — đơn vị tìm kiếm thực tế (vd ~300-500 từ).
+- **Embedding** ≈ **toạ độ của đoạn trong "không gian ý nghĩa"** — hai đoạn cùng ý nghĩa thì gần nhau về toạ độ, dù dùng từ khác nhau.
+- **Citation** ≈ **chú thích cuối câu trả lời** — "Theo trang 12, mục 3.2 của Sổ tay HR 2026…". Khách click được để mở tài liệu gốc.
+
+**Ví dụ cụ thể**: KB `chinh-sach-hr-2026` chứa 80 file PDF chính sách (~2400 segment). Nhân viên hỏi *"Tôi có bao nhiêu ngày phép thai sản?"* →
+
+1. Câu hỏi được embed → tra vector store
+2. Hệ thống tìm 3 segment gần nghĩa nhất: 1 đoạn từ "Sổ tay HR 2026 — trang 7", 1 đoạn từ "Quy định nghỉ phép — Phụ lục 2", 1 đoạn từ "Luật Lao động trích lục"
+3. Đưa 3 đoạn + câu hỏi cho LLM
+4. LLM tổng hợp: *"Theo chính sách công ty, lao động nữ được nghỉ thai sản 6 tháng (Sổ tay HR 2026, tr.7). Trong trường hợp sinh đôi, mỗi con thêm 1 tháng (Phụ lục 2)…"* + link tới file gốc.
+
+**Vì sao không để LLM tự biết**: LLM được train trên dữ liệu công khai, **không biết** chính sách nội bộ cụ thể của tổ chức bạn. Hỏi mà không có KB → LLM hoặc "không biết", hoặc tệ hơn: **bịa ra** câu trả lời nghe có vẻ đúng. KB là cơ chế ép agent **chỉ dùng tài liệu đã được kiểm duyệt** của tổ chức.
+
+**Đọc trang này nếu bạn là**:
+
+- **BA / content editor** — đang chuẩn bị tài liệu để nạp KB, cần biết format hỗ trợ, cách chunking, kết quả mong đợi.
+- **Builder** — đang gắn KB vào agent, cần hiểu retrieval và citation ảnh hưởng câu trả lời thế nào.
+- **Đội tri thức / pháp chế** — cần biết tài liệu nội bộ được lưu, truy xuất, audit ra sao.
+- **Kiến trúc sư / Dev** — cần map khái niệm KB vào pipeline kỹ thuật (ingest, embedding, vector store).
+
+**Trang liên quan**: [Agent](/02-domain/03-agent) (KB cấp cho agent) · [RAG Pipeline](/03-architecture/05-rag-pipeline) (kỹ thuật chi tiết).
 
 ---
 
 ## 1. Vì sao Knowledge Base
 
-LLM một mình **không biết** tri thức nội bộ của tổ chức (chính sách HR, sản phẩm cụ thể, hợp đồng cũ). KB giải bài này: nạp tài liệu nội bộ vào → agent retrieve khi cần → trả lời **có dẫn nguồn**, **không bịa đặt**.
+KB hiện thực hoá [Vision § 5 — Tri thức nội bộ ưu tiên](/01-overview/01-vision): khi câu hỏi có chạm tới tri thức tổ chức, agent **ưu tiên tài liệu của tổ chức trên kiến thức chung của LLM**. Không có KB, agent rơi vào 1 trong 2 hỏng: hoặc trả lời "không biết", hoặc tệ hơn — **bịa ra** câu nghe có vẻ đúng vì LLM được train trên dữ liệu công khai, không thấy tài liệu nội bộ.
 
-Tie-back [Vision § 5 — Tri thức nội bộ ưu tiên](/01-overview/01-vision): Agent ưu tiên tài liệu của tổ chức **trên** kiến thức chung của LLM.
+Lợi ích kép cho tổ chức:
+
+- **Chất lượng câu trả lời**: bám tài liệu đã được kiểm duyệt, có trích dẫn để người dùng kiểm chứng.
+- **Quản trị tri thức**: tài liệu chỉ cần upload 1 lần, mọi agent dùng được — tránh phân mảnh "mỗi agent một bộ knowledge riêng".
 
 ---
 
@@ -48,6 +79,7 @@ erDiagram
 
     KnowledgeBase {
         string id
+        string tenant_id
         string workspace_id
         string name
         string description
@@ -58,6 +90,8 @@ erDiagram
     Document {
         string id
         string kb_id
+        string tenant_id
+        string workspace_id
         string source_type "upload|url|gdrive|sharepoint|notion"
         string source_ref
         string status "queued|processing|completed|failed"
@@ -66,6 +100,8 @@ erDiagram
     Segment {
         string id
         string document_id
+        string tenant_id
+        string workspace_id
         text content
         int position
         json metadata

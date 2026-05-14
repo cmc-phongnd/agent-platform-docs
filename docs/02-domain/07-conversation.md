@@ -6,9 +6,37 @@ sidebar_position: 7
 
 🟡 Draft — v0.1
 
-> Trang này định nghĩa **2 đơn vị thực thi** trong CAP: **Conversation** (chat với agent) và **Workflow Run** (1 lần execute workflow). Đối tượng đọc: builder, dev tích hợp, compliance.
->
-> Chi tiết kỹ thuật state machine ở [Section 3 — Workflow Engine](/03-architecture/03-workflow-engine).
+## Conversation & Run là gì
+
+CAP có **2 đơn vị thực thi** ghi lại "một lần làm việc" của hệ thống — quan trọng vì đây là **đối tượng bị audit, bị tính tiền, bị debug**:
+
+- **Conversation** — một **phiên chat** giữa end-user và Agent. Có nhiều **Message** (lượt thoại) nối tiếp, có **memory ngữ cảnh** (agent nhớ những gì đã nói), có **streaming** (chữ chảy ra dần như đang đánh máy), kéo dài cho tới khi user rời đi hoặc agent kết thúc.
+- **Workflow Run** — một **lần execute** Workflow từ đầu đến cuối. Mỗi node sinh ra một **Node Execution**. Không stateful giữa các lần run (trừ khi pause/resume cho `human_input`).
+
+Cả hai đều có **Trace** (chi tiết mỗi bước để debug + audit), đếm **Cost** (token + tool + embedding), có **Retention policy** (lưu nóng → archive → xoá theo nhu cầu compliance).
+
+**Phép hình dung**:
+
+- **Conversation** ≈ **một phiên tư vấn với nhân viên ảo** — nhiều câu hỏi-trả lời nối nhau, agent nhớ ngữ cảnh từ đầu phiên.
+- **Workflow Run** ≈ **một lượt chạy của dây chuyền lắp ráp** — đầu vào → các trạm → đầu ra; mỗi trạm để lại log.
+- **Message** ≈ **một câu** trong phiên tư vấn (user hỏi hoặc agent đáp).
+- **Node Execution** ≈ **một trạm** trong lượt chạy dây chuyền (có input, output, thời gian, chi phí, status).
+- **Trace** ≈ **hộp đen máy bay** — ghi lại mọi thứ để khi cần điều tra (debug khi agent trả sai, audit khi khách khiếu nại, dispute chi phí).
+
+**Ví dụ Conversation**: khách hàng mở chat → hỏi giá sản phẩm X → agent retrieve KB → trả giá → khách hỏi tiếp "có bảo hành không" → agent dùng context cũ + retrieve lần nữa → trả lời + đính link chính sách bảo hành. Kết quả: **1 conversation** gồm 4 message, kéo dài 2 phút, tốn $0.08.
+
+**Ví dụ Workflow Run**: hệ thống schedule chạy workflow `daily-sales-report` lúc 23:00 mỗi đêm. Một run = 12 node execution (query DB, gọi LLM tổng hợp, vẽ biểu đồ, gửi email), kéo dài 3 phút, tốn $0.42. Đêm mai chạy lại = **một run mới hoàn toàn độc lập** (không nhớ run hôm trước).
+
+**Khi nào dùng cái nào**: end-user cần "**nói chuyện**" với hệ thống → Conversation (gắn với Agent). Cần "**chạy quy trình tự động**" không có người tương tác từng bước → Workflow Run (gắn với Workflow). Bảng so sánh chi tiết: §1.
+
+**Đọc trang này nếu bạn là**:
+
+- **Builder** — cần biết một lượt thực thi có gì để debug khi agent/workflow chạy sai.
+- **Dev tích hợp** — cần biết schema conversation/run khi build UI riêng hoặc xuất báo cáo cho khách.
+- **Đội Compliance / pháp chế** — cần biết log nào được lưu, lưu bao lâu, redact PII ra sao.
+- **PM / Finance** — cần biết cost được attribute ra sao theo conversation/run để tính giá thành.
+
+**Trang liên quan**: [Agent](/02-domain/03-agent) (chủ thể của conversation) · [Workflow](/02-domain/06-workflow) (chủ thể của run) · [Workflow Engine](/03-architecture/03-workflow-engine) (state machine kỹ thuật) · [Observability](/03-architecture/08-observability) (trace + metrics).
 
 ---
 
@@ -57,7 +85,9 @@ erDiagram
         string id
         string agent_id
         string agent_version_id
-        string end_user_id
+        string tenant_id
+        string workspace_id
+        string end_user_id "opaque ID do tenant gán; CAP không validate"
         string status "open|active|idle|archived"
         datetime started_at
         datetime last_message_at
@@ -67,6 +97,8 @@ erDiagram
     Message {
         string id
         string conversation_id
+        string tenant_id
+        string workspace_id
         string role "user|assistant|tool_use|tool_result|system"
         text content
         json metadata

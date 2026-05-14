@@ -6,20 +6,48 @@ sidebar_position: 4
 
 🟡 Draft — v0.1
 
-> Trang này định nghĩa **Tool** — khả năng cho phép agent gọi ra ngoài hoặc gọi service trong CAP. Đối tượng đọc: builder, kiến trúc sư, dev tích hợp.
->
-> Chi tiết kỹ thuật sandbox ở [Section 3 — Tool Runtime](/03-architecture/04-tool-runtime).
+## Tool là gì
+
+**Tool** là **"bàn tay"** của agent — khả năng cho phép agent **làm được việc thật**, không chỉ "nói chuyện". Tool có thể là: gọi REST API bên ngoài (CRM, ERP, HRM), gọi MCP server (Slack, Google Drive…), gửi email, query database, hoặc gọi một Workflow CAP khác như một function.
+
+Cơ chế: agent được phát một **danh sách tool kèm schema** (mô tả + input/output). LLM tự đọc danh sách, **tự quyết** khi nào cần gọi tool nào với tham số gì → CAP nhận lời gọi → thực thi trong **sandbox cách ly** → trả kết quả về cho agent dùng tiếp.
+
+**Phép hình dung**:
+
+- Tool ≈ **các app trên điện thoại của agent** — mỗi app làm 1 việc cụ thể, có **giấy phép truy cập riêng** (credential), agent chỉ mở khi cần.
+- **Tool Schema** ≈ **hướng dẫn sử dụng app** — LLM đọc schema để biết tham số nào bắt buộc, kết quả trả về dạng gì.
+- **Tool Runtime** ≈ **chiếc điện thoại** — môi trường sandbox có giới hạn thời gian, CPU, network; tool chạy ở đây **không nhìn thấy** DB nội bộ của CAP.
+- **Credential** ≈ **thẻ login** đã mã hoá; gắn theo workspace hoặc tenant; có thể rotate / revoke độc lập với tool.
+
+**4 loại Tool**:
+
+| Loại | Khi nào dùng | Ví dụ |
+| --- | --- | --- |
+| **Built-in** | Có sẵn từ CAP, không cần khai báo | `web_search`, `code_interpreter`, `image_gen` |
+| **Custom REST** | Tổ chức đã có API nội bộ, muốn agent dùng | `get_customer_by_id` (từ CRM), `check_warranty` (từ ERP) |
+| **MCP** | Kết nối SaaS chuẩn Model Context Protocol | Slack, GitHub, Google Drive, Notion |
+| **Workflow-as-Tool** | Một workflow CAP được "đóng gói" thành tool cho agent khác gọi | `daily_report_generator`, `invoice_extractor` |
+
+**Ví dụ cụ thể**: agent `cmc-hr-helpdesk` có 3 tool: `submit_leave_request` (Custom REST, gọi HRMS API), `slack_dm` (MCP, gửi tin trong Slack), `escalate_to_human` (Workflow-as-Tool, chuyển ticket sang đội HR). Khi nhân viên hỏi *"Em xin nghỉ thứ Sáu này"*, LLM tự gọi `submit_leave_request` với tham số `date=2026-05-22, employee_id=...`.
+
+**Đọc trang này nếu bạn là**:
+
+- **Builder** — đang muốn cho agent gọi hệ thống nội bộ, cần biết khai báo tool ra sao.
+- **Dev tích hợp** — cần biết schema, auth, error model khi expose API nội bộ cho CAP.
+- **Kiến trúc sư / Security** — cần biết tool chạy ở đâu, isolation thế nào, credential lưu ra sao.
+
+**Trang liên quan**: [Agent](/02-domain/03-agent) (tool phục vụ ai) · [Workflow](/02-domain/06-workflow) (workflow-as-tool) · [Tool Runtime](/03-architecture/04-tool-runtime) (sandbox kỹ thuật).
 
 ---
 
 ## 1. Vì sao Tool
 
-LLM một mình chỉ "nói chuyện được". Để **làm được việc thật** (gửi email, query DB, gọi API CRM), agent cần Tool.
+Tool là cách CAP giữ hai cam kết cốt lõi từ [Vision](/01-overview/01-vision) khi agent đụng tới thế giới ngoài:
 
-Tie-back [Vision](/01-overview/01-vision):
+- **§ 3.4 — Tự chủ công nghệ**: Tool agnostic. Đổi tool / đổi nhà cung cấp không phải rebuild agent — chỉ thay credential và schema.
+- **§ 5 — An toàn theo mặc định**: Tool chạy trong **sandbox cách ly**, không truy cập DB CAP trực tiếp; mọi call đều có timeout, rate limit, audit.
 
-- **§ 3.4 Tự chủ công nghệ**: Tool agnostic — đổi tool / đổi nhà cung cấp không rebuild agent
-- **§ 5 An toàn theo mặc định**: Tool chạy trong sandbox, không truy cập DB CAP trực tiếp
+Hệ quả: builder có thể **thêm/bỏ tool** trong agent qua UI mà không lo phá vỡ bảo mật ngầm; security có cơ sở để đánh giá rủi ro theo tool, không theo agent.
 
 ---
 
@@ -48,6 +76,7 @@ erDiagram
 
     Tool {
         string id
+        string tenant_id
         string workspace_id
         string name
         string type "builtin|rest|mcp|workflow"
@@ -57,9 +86,20 @@ erDiagram
     }
     ToolVersion {
         string id
+        string tool_id
         string version "v1.0.0"
         bool is_breaking
         datetime published_at
+    }
+    Credential {
+        string id
+        string tool_id
+        string tenant_id
+        string workspace_id
+        string scope "tenant|workspace|user"
+        string ciphertext
+        datetime expires_at
+        datetime rotated_at
     }
 ```
 
