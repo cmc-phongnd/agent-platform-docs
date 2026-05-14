@@ -52,7 +52,8 @@ const config: Config = {
   themeConfig: {
     image: 'img/cap-social-card.jpg',
     colorMode: {
-      respectPrefersColorScheme: true,
+      defaultMode: 'light',
+      respectPrefersColorScheme: false,
     },
     navbar: {
       title: 'CMC Agent Platform',
