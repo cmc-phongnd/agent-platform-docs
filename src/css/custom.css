@@ -125,23 +125,27 @@
   pointer-events: none;
 }
 
-/* Fullscreen mode */
+/* Fullscreen mode — đặt dưới navbar để không bị header che */
 .mermaid-zoom--fullscreen {
   position: fixed;
-  top: 0;
+  top: var(--ifm-navbar-height, 60px);
   left: 0;
   right: 0;
   bottom: 0;
   width: 100vw;
-  height: 100vh;
+  height: calc(100vh - var(--ifm-navbar-height, 60px));
   margin: 0;
   border-radius: 0;
-  z-index: 9999;
+  z-index: 200;
   border: none;
 }
 
 .mermaid-zoom--fullscreen .mermaid-zoom__container {
-  height: 100vh;
+  height: calc(100vh - var(--ifm-navbar-height, 60px));
+}
+
+.medium-zoom-image--opened {
+	z-index: 9999;
 }
 
 /* ============================================
