@@ -62,6 +62,20 @@ Thuật ngữ chuẩn dùng trong toàn bộ doc CAP. Cần thống nhất sớm
 | **Object Storage** | S3/MinIO lưu file gốc, artifact |
 | **Collection** | 1 bảng/index trong Vector Store, thường = 1 knowledge base hoặc 1 (provider, model) |
 
+## Billing
+
+| Term | Định nghĩa |
+| --- | --- |
+| **Package** | Template gói dịch vụ do CAP Owner định nghĩa (MVP: Trial / Team / Business / Enterprise). `config` jsonb chứa quota + feature + pricing inline. Sửa qua UI |
+| **Subscription** | Instance Tenant ↔ Package đang active. `snapshot` (copy `package.config` lúc ký) đảm bảo grandfathering; `override` jsonb cho enterprise custom |
+| **Snapshot** | Bản sao `package.config` được ghi vào Subscription lúc ký — Owner sửa Package sau không ảnh hưởng khách cũ. Thay thế cho khái niệm PackageVersion |
+| **Override** | JSON column trên Subscription, deep-merge vào snapshot để cho phép custom quota/feature (chủ yếu Enterprise) |
+| **Quota Dimension** | 11 loại quota cố định trong code (`llm_token`, `upload_size`, `seat`, `total_storage`, `resource_*`, ...). Không có table registry ở MVP |
+| **UsageRecord** | Event log append-only mỗi lần consume quota (1 LLM call = 1 record) |
+| **UsageAggregate** | Roll-up `UsageRecord` theo cycle, dùng cho invoice + dispute |
+| **BYO LLM** | Bring Your Own LLM — workspace tự cấu hình key Azure OpenAI / Anthropic / vLLM nội bộ, CAP không gate token quota |
+| **Cycle Anchor** | Mốc ngày trong tháng để reset quota (ngày Subscription chuyển Trial → Active) |
+
 ## Quy ước viết
 
 - **Identifier**: snake_case (`tenant_id`, `workflow_run_id`)

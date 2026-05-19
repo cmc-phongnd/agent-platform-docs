@@ -246,7 +246,9 @@ Workspace đơn giản hơn — không có suspended state (billing ở cấp Te
 
 ## 6. Plan & quota model
 
-Quota gắn vào **Tenant**, không vào Workspace — workspace nào tiêu nhiều thì ăn vào quota chung. Lãnh đạo có dashboard consumption per workspace.
+> 📦 **Chi tiết đầy đủ ở [Billing & Subscription](/02-domain/08-billing)** — mô hình Package / Subscription / Quota allocation, package versioning, BYO LLM, billing modes (real / internal_chargeback / free).
+
+Quota **Subscription gắn ở Tenant**, **allocation phân bổ xuống Workspace** — tenant_admin chia pool quota Tenant cho từng workspace qua UI. Lãnh đạo có dashboard consumption per workspace.
 
 | Tier | Phù hợp | Quota tiêu biểu |
 | --- | --- | --- |

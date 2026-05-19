@@ -274,3 +274,71 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================================
+   Billing package cards
+   ============================================ */
+.billing-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.billing-card {
+  flex: 1 1 240px;
+  min-width: 240px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  background: var(--ifm-background-surface-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.billing-card__title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-color-content);
+}
+
+.billing-card__price {
+  font-size: 0.85rem;
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+.billing-card__meta {
+  font-size: 0.78rem;
+  color: var(--ifm-color-content-secondary);
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+.billing-card__section {
+  font-weight: 700;
+  font-size: 0.72rem;
+  margin: 0.6rem 0 0.3rem;
+  color: var(--ifm-color-emphasis-700);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.billing-card ul {
+  margin: 0 0 0.3rem;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.billing-card li {
+  margin: 0.1rem 0;
+}
+
+@media (max-width: 768px) {
+  .billing-card {
+    flex: 1 1 100%;
+  }
+}

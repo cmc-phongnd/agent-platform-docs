@@ -235,6 +235,8 @@ Lưu toàn bộ message vào KB cá nhân — retrieve relevant past message tha
 
 ## 9. Cost attribution
 
+> 💰 Liên hệ với [Billing & Subscription](/02-domain/08-billing) — mỗi `cost_usd` ở đây sinh ra 1 `UsageRecord` của dimension `llm_token` (hoặc `web_search_call` cho tool có phí). UsageAggregate roll-up theo Subscription cycle để generate invoice (real / internal_chargeback).
+
 Hệ thống tách cost chi tiết để charge / báo cáo:
 
 | Cấp | Mô tả |
