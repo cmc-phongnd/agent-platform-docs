@@ -112,6 +112,8 @@ flowchart TB
 | **Phụ thuộc** | Postgres, Vector DB, Object Storage, MQ |
 | **Scaling** | Horizontal theo queue depth; mỗi worker pull job độc lập |
 
+> 📦 Chi tiết thiết kế message contract, retry, DLQ, scheduled jobs, leader election… ở **[Task Queue & Background Jobs](/03-architecture/09-task-queue)**.
+
 ### 1.5 Scheduler
 
 | | |

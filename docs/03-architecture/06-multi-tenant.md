@@ -227,7 +227,7 @@ async def ingest_document_job(payload: dict):
         ...
 ```
 
-Producer (engine) push job phải đính `tenant_id` + `workspace_id` vào payload — convention bắt buộc cho mọi MQ message.
+Producer (engine) push job phải đính `tenant_id` + `workspace_id` vào payload — convention bắt buộc cho mọi MQ message. Chi tiết message contract + xử lý ở [Task Queue §3](/03-architecture/09-task-queue).
 
 ---
 

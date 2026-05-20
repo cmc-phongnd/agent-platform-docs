@@ -257,6 +257,8 @@ Cấu trúc thư mục **gắn tenant_id ở top** — IAM policy ở S3 level c
 
 ## 6. Message Queue — băng chuyền
 
+> 📦 Phần dưới đây là tóm tắt store-level. Chi tiết đầy đủ (message contract, retry strategy, DLQ, delayed jobs, concurrency lock, scheduler HA, outbox, observability metrics…) ở **[Task Queue & Background Jobs](/03-architecture/09-task-queue)**.
+
 ### 6.1 Topology
 
 ```mermaid
